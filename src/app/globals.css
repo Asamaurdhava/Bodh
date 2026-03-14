@@ -46,8 +46,7 @@ body {
 }
 
 textarea {
-  overflow: hidden;
-  overflow-y: scroll;
+  overflow-y: auto;
   scrollbar-gutter: stable;
 }
 

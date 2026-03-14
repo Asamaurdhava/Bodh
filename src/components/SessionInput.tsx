@@ -109,7 +109,7 @@ interface SessionInputProps {
 }
 
 const TEXTAREA_BASE =
-  "w-full resize-none overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-mono text-sm leading-relaxed text-[var(--color-foreground)] placeholder:text-[var(--color-muted)]/40 focus:border-[var(--color-ground)] focus:outline-none focus:ring-1 focus:ring-[var(--color-ground)]";
+  "w-full resize-y overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-mono text-sm leading-relaxed text-[var(--color-foreground)] placeholder:text-[var(--color-muted)]/40 focus:border-[var(--color-ground)] focus:outline-none focus:ring-1 focus:ring-[var(--color-ground)]";
 
 export function SessionInput({ onSubmit, isLoading }: SessionInputProps) {
   const [prompt, setPrompt] = useState("");
@@ -157,7 +157,7 @@ export function SessionInput({ onSubmit, isLoading }: SessionInputProps) {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="e.g. Build a React component that fetches user data and displays it in a sortable table..."
-          className={`h-24 ${TEXTAREA_BASE}`}
+          className={`min-h-24 ${TEXTAREA_BASE}`}
           disabled={isLoading}
         />
       </div>
@@ -172,7 +172,7 @@ export function SessionInput({ onSubmit, isLoading }: SessionInputProps) {
           value={aiResponse}
           onChange={(e) => setAiResponse(e.target.value)}
           placeholder="Paste the AI-generated code here..."
-          className={`h-48 ${TEXTAREA_BASE}`}
+          className={`min-h-48 ${TEXTAREA_BASE}`}
           disabled={isLoading}
         />
       </div>
@@ -187,7 +187,7 @@ export function SessionInput({ onSubmit, isLoading }: SessionInputProps) {
           value={modifications}
           onChange={(e) => setModifications(e.target.value)}
           placeholder="Describe what you changed, or paste your final version. Leave empty if you accepted the AI output as-is."
-          className={`h-36 ${TEXTAREA_BASE}`}
+          className={`min-h-36 ${TEXTAREA_BASE}`}
           disabled={isLoading}
         />
       </div>

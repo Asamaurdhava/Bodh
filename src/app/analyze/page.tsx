@@ -135,157 +135,157 @@ export default function AnalyzePage() {
 
       {/* Pipeline Timeline */}
       {(isLoading || result) && (
-        <div className="mt-10">
-          <div className="relative pl-8">
-            {/* Vertical line */}
-            <div className="absolute left-[11px] top-0 bottom-0 w-px bg-[var(--color-border)]" />
+        <div className="mt-12 space-y-0">
+          {STEPS.map((step, i) => {
+            const isDone = completedSteps >= step.num;
+            const isActive = isLoading && currentStep === step.num;
+            const isLast = i === STEPS.length - 1;
 
-            {STEPS.map((step) => {
-              const isDone = completedSteps >= step.num;
-              const isActive = isLoading && currentStep === step.num;
-
-              return (
-                <div key={step.num} className="relative pb-8 last:pb-0">
-                  {/* Dot */}
+            return (
+              <div key={step.num} className="flex gap-4">
+                {/* Left: dot + connector */}
+                <div className="flex flex-col items-center">
                   <div
-                    className={`absolute -left-8 top-0.5 flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 transition-all ${
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
                       isDone
                         ? "border-[var(--color-ground)] bg-[var(--color-ground)]"
                         : isActive
-                          ? "border-[var(--color-edge)] bg-transparent"
+                          ? "border-[var(--color-edge)] bg-[var(--color-edge)]/10"
                           : "border-[var(--color-border)] bg-transparent"
                     }`}
                   >
-                    {isDone && (
-                      <svg className="h-3 w-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    {isDone ? (
+                      <svg className="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
-                    )}
-                    {isActive && (
-                      <div className="h-2 w-2 animate-pulse rounded-full bg-[var(--color-edge)]" />
-                    )}
-                  </div>
-
-                  {/* Step content */}
-                  <div>
-                    <h3 className={`text-sm font-semibold ${isDone ? "text-[var(--color-foreground)]" : isActive ? "text-[var(--color-edge)]" : "text-[var(--color-muted)]"}`}>
-                      {step.title}
-                    </h3>
-                    <p className="mt-0.5 text-xs text-[var(--color-muted)]">
-                      {step.desc}
-                    </p>
-
-                    {/* Step 1 result: concepts as inline flow */}
-                    {step.num === 1 && classification && (
-                      <div className="mt-3 space-y-2">
-                        <p className="text-sm leading-relaxed text-[var(--color-foreground)]">
-                          {classification.prompt_intent}
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {classification.concepts_involved.map((concept) => (
-                            <span
-                              key={concept}
-                              className="rounded-full border border-[var(--color-border)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--color-muted)]"
-                            >
-                              {concept}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-[var(--color-muted)]">Modification depth:</span>
-                          <span
-                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                            style={{
-                              color: DEPTH_LABELS[classification.modification_depth]?.color,
-                              border: `1px solid ${DEPTH_LABELS[classification.modification_depth]?.color}`,
-                            }}
-                          >
-                            {DEPTH_LABELS[classification.modification_depth]?.label}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Step 2 result: concept confidence bars */}
-                    {step.num === 2 && analysis && (
-                      <div className="mt-3 space-y-2">
-                        {analysis.concept_analyses.map((ca) => (
-                          <div key={ca.concept} className="group">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="font-medium text-[var(--color-foreground)]">
-                                {ca.concept}
-                              </span>
-                              <span
-                                className="font-mono text-[11px]"
-                                style={{
-                                  color:
-                                    ca.confidence >= 0.7
-                                      ? "var(--color-ground)"
-                                      : ca.confidence >= 0.4
-                                        ? "var(--color-edge)"
-                                        : "var(--color-zone)",
-                                }}
-                              >
-                                {Math.round(ca.confidence * 100)}%
-                              </span>
-                            </div>
-                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--color-border)]">
-                              <div
-                                className="h-full rounded-full transition-all duration-500"
-                                style={{
-                                  width: `${ca.confidence * 100}%`,
-                                  backgroundColor:
-                                    ca.confidence >= 0.7
-                                      ? "var(--color-ground)"
-                                      : ca.confidence >= 0.4
-                                        ? "var(--color-edge)"
-                                        : "var(--color-zone)",
-                                }}
-                              />
-                            </div>
-                            <p className="mt-0.5 text-[11px] leading-snug text-[var(--color-muted)] opacity-0 transition-opacity group-hover:opacity-100">
-                              {ca.evidence}
-                            </p>
-                          </div>
-                        ))}
-                        <p className="mt-2 text-xs italic leading-relaxed text-[var(--color-muted)]">
-                          {analysis.overall_assessment}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Step 3 result: zone summary */}
-                    {step.num === 3 && result && (
-                      <div className="mt-3 space-y-3">
-                        <div className="flex gap-4">
-                          {[
-                            { zone: "your_ground", label: "Your Ground", color: "var(--color-ground)", skills: result.identity_map.your_ground },
-                            { zone: "growing_edge", label: "Growing Edge", color: "var(--color-edge)", skills: result.identity_map.growing_edge },
-                            { zone: "ai_zone", label: "AI Zone", color: "var(--color-zone)", skills: result.identity_map.ai_zone },
-                          ].map((z) => (
-                            <div key={z.zone} className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-                              <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: z.color }}>
-                                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: z.color }} />
-                                {z.label}
-                              </div>
-                              <p className="mt-1 text-lg font-bold">{z.skills.length}</p>
-                              <div className="mt-1 space-y-0.5">
-                                {z.skills.map((s) => (
-                                  <p key={s.skill} className="truncate text-[11px] text-[var(--color-muted)]">
-                                    {s.skill}
-                                  </p>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                    ) : isActive ? (
+                      <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[var(--color-edge)]" />
+                    ) : (
+                      <span className="text-xs font-medium text-[var(--color-muted)]">{step.num}</span>
                     )}
                   </div>
+                  {!isLast && (
+                    <div className={`w-px flex-1 min-h-6 ${isDone ? "bg-[var(--color-ground)]/30" : "bg-[var(--color-border)]"}`} />
+                  )}
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Right: content */}
+                <div className={`pb-8 ${isLast ? "pb-0" : ""} flex-1 pt-1`}>
+                  <h3 className={`text-sm font-semibold ${isDone ? "text-[var(--color-foreground)]" : isActive ? "text-[var(--color-edge)]" : "text-[var(--color-muted)]"}`}>
+                    {step.title}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-[var(--color-muted)]">
+                    {step.desc}
+                  </p>
+
+                  {/* Step 1 result */}
+                  {step.num === 1 && classification && (
+                    <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-3">
+                      <p className="text-sm leading-relaxed text-[var(--color-foreground)]">
+                        {classification.prompt_intent}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {classification.concepts_involved.map((concept) => (
+                          <span
+                            key={concept}
+                            className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--color-muted)]"
+                          >
+                            {concept}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-[var(--color-muted)]">Modification depth:</span>
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                          style={{
+                            color: DEPTH_LABELS[classification.modification_depth]?.color,
+                            border: `1px solid ${DEPTH_LABELS[classification.modification_depth]?.color}`,
+                          }}
+                        >
+                          {DEPTH_LABELS[classification.modification_depth]?.label}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 2 result */}
+                  {step.num === 2 && analysis && (
+                    <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-3">
+                      {analysis.concept_analyses.map((ca) => (
+                        <div key={ca.concept}>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-[var(--color-foreground)]">
+                              {ca.concept}
+                            </span>
+                            <span
+                              className="font-mono text-[11px] font-semibold"
+                              style={{
+                                color:
+                                  ca.confidence >= 0.7
+                                    ? "var(--color-ground)"
+                                    : ca.confidence >= 0.4
+                                      ? "var(--color-edge)"
+                                      : "var(--color-zone)",
+                              }}
+                            >
+                              {Math.round(ca.confidence * 100)}%
+                            </span>
+                          </div>
+                          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--color-border)]">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${ca.confidence * 100}%`,
+                                backgroundColor:
+                                  ca.confidence >= 0.7
+                                    ? "var(--color-ground)"
+                                    : ca.confidence >= 0.4
+                                      ? "var(--color-edge)"
+                                      : "var(--color-zone)",
+                              }}
+                            />
+                          </div>
+                          <p className="mt-1 text-[11px] leading-snug text-[var(--color-muted)]">
+                            {ca.evidence}
+                          </p>
+                        </div>
+                      ))}
+                      <p className="pt-2 text-xs italic leading-relaxed text-[var(--color-muted)] border-t border-[var(--color-border)]">
+                        {analysis.overall_assessment}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Step 3 result */}
+                  {step.num === 3 && result && (
+                    <div className="mt-4 grid grid-cols-3 gap-3">
+                      {[
+                        { zone: "your_ground", label: "Your Ground", color: "var(--color-ground)", skills: result.identity_map.your_ground },
+                        { zone: "growing_edge", label: "Growing Edge", color: "var(--color-edge)", skills: result.identity_map.growing_edge },
+                        { zone: "ai_zone", label: "AI Zone", color: "var(--color-zone)", skills: result.identity_map.ai_zone },
+                      ].map((z) => (
+                        <div key={z.zone} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: z.color }}>
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: z.color }} />
+                            {z.label}
+                          </div>
+                          <p className="mt-1.5 text-2xl font-bold">{z.skills.length}</p>
+                          <div className="mt-2 space-y-1">
+                            {z.skills.map((s) => (
+                              <p key={s.skill} className="truncate text-[11px] text-[var(--color-muted)]">
+                                {s.skill}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
