@@ -25,7 +25,7 @@ import type {
   StreamEvent,
 } from "./types";
 
-const MODEL = "claude-opus-4-6";
+const MODEL = "claude-sonnet-4-6";
 
 function getClient(): Anthropic {
   return new Anthropic();
@@ -73,7 +73,7 @@ export async function analyzeDependencies(
     temperature: 1, // required for extended thinking
     thinking: {
       type: "enabled",
-      budget_tokens: 10000,
+      budget_tokens: 5000,
     },
     system: STEP_2_DEPENDENCY_ANALYSIS_PROMPT,
     messages: [
