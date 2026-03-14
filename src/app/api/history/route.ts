@@ -2,7 +2,7 @@ import { getSavedSessions } from "@/lib/db";
 
 export async function GET() {
   try {
-    const sessions = getSavedSessions("default");
+    const sessions = await getSavedSessions("default");
     return Response.json({ sessions });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load history";

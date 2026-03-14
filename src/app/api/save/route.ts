@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   const sessionId = crypto.randomUUID();
 
   try {
-    saveFullSession(sessionId, "default", body.result, body.challenges);
+    await saveFullSession(sessionId, "default", body.result, body.challenges);
     return Response.json({ success: true, id: sessionId });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Save failed";

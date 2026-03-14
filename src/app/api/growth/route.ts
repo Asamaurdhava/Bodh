@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("user_id") || "default";
 
   try {
-    const growth = getGrowthData(userId);
+    const growth = await getGrowthData(userId);
     return Response.json(growth);
   } catch (error) {
     const message =

@@ -1,9 +1,8 @@
 // ============================================================
-// In-memory session store (Vercel-compatible, no native deps)
-// Sessions persist within a single serverless instance lifetime.
-// For permanent persistence, swap with a hosted DB (e.g. Turso, PlanetScale).
+// Supabase-backed session persistence
 // ============================================================
 
+import { supabase } from "./supabase";
 import type {
   IdentityMapData,
   SessionRecord,
@@ -23,15 +22,14 @@ export interface SavedSession {
   challenges_completed: string[];
 }
 
-const sessions = new Map<string, SavedSession>();
-
-export function saveSession(
+export async function saveSession(
   id: string,
-  _userId: string,
+  userId: string,
   identityMap: IdentityMapData
-): void {
-  sessions.set(id, {
+): Promise<void> {
+  await supabase.from("sessions").upsert({
     id,
+    user_id: userId,
     timestamp: new Date().toISOString(),
     identity_map: identityMap,
     full_result: null,
@@ -40,14 +38,15 @@ export function saveSession(
   });
 }
 
-export function saveFullSession(
+export async function saveFullSession(
   id: string,
-  _userId: string,
+  userId: string,
   result: AnalyzeResponse,
   challenges?: ChallengeGenerationResult
-): void {
-  sessions.set(id, {
+): Promise<void> {
+  await supabase.from("sessions").upsert({
     id,
+    user_id: userId,
     timestamp: new Date().toISOString(),
     identity_map: result.identity_map,
     full_result: result,
@@ -56,25 +55,44 @@ export function saveFullSession(
   });
 }
 
-export function getSavedSessions(_userId: string): SavedSession[] {
-  return Array.from(sessions.values()).sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+export async function getSavedSessions(userId: string): Promise<SavedSession[]> {
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("id, timestamp, identity_map, full_result, challenges, challenges_completed")
+    .eq("user_id", userId)
+    .order("timestamp", { ascending: false });
+
+  if (error || !data) return [];
+
+  return data.map((row) => ({
+    id: row.id,
+    timestamp: row.timestamp,
+    identity_map: row.identity_map as IdentityMapData,
+    full_result: row.full_result as AnalyzeResponse | null,
+    challenges: row.challenges as ChallengeGenerationResult | null,
+    challenges_completed: (row.challenges_completed as string[]) ?? [],
+  }));
 }
 
-export function getSessions(_userId: string): SessionRecord[] {
-  return Array.from(sessions.values())
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-    .map((s) => ({
-      id: s.id,
-      timestamp: s.timestamp,
-      identity_map: s.identity_map,
-      challenges_completed: s.challenges_completed,
-    }));
+export async function getSessions(userId: string): Promise<SessionRecord[]> {
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("id, timestamp, identity_map, challenges_completed")
+    .eq("user_id", userId)
+    .order("timestamp", { ascending: true });
+
+  if (error || !data) return [];
+
+  return data.map((row) => ({
+    id: row.id,
+    timestamp: row.timestamp,
+    identity_map: row.identity_map as IdentityMapData,
+    challenges_completed: (row.challenges_completed as string[]) ?? [],
+  }));
 }
 
-export function getGrowthData(userId: string): GrowthData {
-  const allSessions = getSessions(userId);
+export async function getGrowthData(userId: string): Promise<GrowthData> {
+  const allSessions = await getSessions(userId);
 
   if (allSessions.length < 2) {
     return { sessions: allSessions, deltas: [] };
@@ -129,14 +147,24 @@ function computeDeltas(
   return deltas;
 }
 
-export function markChallengeCompleted(
+export async function markChallengeCompleted(
   sessionId: string,
   challengeId: string
-): void {
-  const session = sessions.get(sessionId);
-  if (!session) return;
+): Promise<void> {
+  const { data } = await supabase
+    .from("sessions")
+    .select("challenges_completed")
+    .eq("id", sessionId)
+    .single();
 
-  if (!session.challenges_completed.includes(challengeId)) {
-    session.challenges_completed.push(challengeId);
+  if (!data) return;
+
+  const completed = (data.challenges_completed as string[]) ?? [];
+  if (!completed.includes(challengeId)) {
+    completed.push(challengeId);
+    await supabase
+      .from("sessions")
+      .update({ challenges_completed: completed })
+      .eq("id", sessionId);
   }
 }
