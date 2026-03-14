@@ -69,17 +69,12 @@ export async function analyzeDependencies(
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 16000,
-    temperature: 1, // required for extended thinking
-    thinking: {
-      type: "enabled",
-      budget_tokens: 5000,
-    },
+    max_tokens: 8000,
     system: STEP_2_DEPENDENCY_ANALYSIS_PROMPT,
     messages: [
       {
         role: "user",
-        content: `Analyze this classified coding session:\n\n${JSON.stringify(classification, null, 2)}\n\nFor each concept in concepts_involved, provide a confidence score and evidence. Format your response as JSON with this structure:\n{\n  "concept_analyses": [\n    {\n      "concept": "string",\n      "confidence": 0.0-1.0,\n      "evidence": "string",\n      "signals_of_understanding": ["string"],\n      "signals_of_delegation": ["string"]\n    }\n  ],\n  "overall_assessment": "string"\n}`,
+        content: `Analyze this classified coding session:\n\n${JSON.stringify(classification, null, 2)}\n\nFor each concept in concepts_involved, provide a confidence score and evidence. Think step by step before producing the JSON.\n\nFormat your final response as JSON with this structure:\n{\n  "concept_analyses": [\n    {\n      "concept": "string",\n      "confidence": 0.0-1.0,\n      "evidence": "string",\n      "signals_of_understanding": ["string"],\n      "signals_of_delegation": ["string"]\n    }\n  ],\n  "overall_assessment": "string"\n}`,
       },
     ],
   });
@@ -88,14 +83,14 @@ export async function analyzeDependencies(
   let textContent = "";
 
   for (const block of response.content) {
-    if (block.type === "thinking") {
-      thinkingTrace += block.thinking;
-    } else if (block.type === "text") {
+    if (block.type === "text") {
       textContent += block.text;
     }
   }
 
-  const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+  // Strip markdown code fences if present
+  const cleaned = textContent.replace(/```json\s*/g, "").replace(/```\s*/g, "");
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error("Step 2 failed: Could not parse dependency analysis JSON");
   }
