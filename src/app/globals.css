@@ -1,26 +1,70 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-background: #100c14;
+  --color-foreground: #f0ecf4;
+  --color-surface: #18141e;
+  --color-surface-hover: #201c28;
+  --color-border: #2e2838;
+  --color-border-subtle: #241e2e;
+  --color-muted: #8a8294;
+
+  /* Zone colors — emerald & rose */
+  --color-ground: #00d492;
+  --color-ground-dim: #007a55;
+  --color-ground-glow: rgba(0, 212, 146, 0.08);
+  --color-edge: oklch(58.6% 0.253 17.585);
+  --color-edge-dim: oklch(35% 0.15 17.585);
+  --color-edge-glow: oklch(58.6% 0.253 17.585 / 0.08);
+  --color-zone: oklch(50% 0.12 17.585);
+  --color-zone-dim: oklch(30% 0.08 17.585);
+  --color-zone-glow: oklch(50% 0.12 17.585 / 0.08);
+
+  /* Accent */
+  --color-accent: #00d492;
+
+  --font-sans: "Cabinet Grotesk", system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  color: var(--color-foreground);
+  font-family: "Cabinet Grotesk", system-ui, sans-serif;
+  min-height: 100vh;
+  background: var(--color-background);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
+
+::selection {
+  background: rgba(0, 212, 146, 0.3);
+  color: white;
+}
+
+textarea {
+  overflow: hidden;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+textarea::-webkit-scrollbar {
+  width: 4px;
+}
+
+textarea::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 12px 0;
+}
+
+textarea::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
 }
