@@ -1,9 +1,9 @@
 // ============================================================
-// SQLite database setup for session persistence and growth tracking
+// In-memory session store (Vercel-compatible, no native deps)
+// Sessions persist within a single serverless instance lifetime.
+// For permanent persistence, swap with a hosted DB (e.g. Turso, PlanetScale).
 // ============================================================
 
-import Database from "better-sqlite3";
-import path from "path";
 import type {
   IdentityMapData,
   SessionRecord,
@@ -14,143 +14,77 @@ import type {
   ChallengeGenerationResult,
 } from "./types";
 
-const DB_PATH = path.join(process.cwd(), "bodh.db");
-
-let db: Database.Database | null = null;
-
-function getDb(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma("journal_mode = WAL");
-    initializeDatabase(db);
-  }
-  return db;
-}
-
-function initializeDatabase(database: Database.Database): void {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL DEFAULT 'default',
-      timestamp TEXT NOT NULL,
-      identity_map TEXT NOT NULL,
-      full_result TEXT,
-      challenges TEXT,
-      challenges_completed TEXT NOT NULL DEFAULT '[]'
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_sessions_timestamp ON sessions(timestamp);
-  `);
-}
-
-export function saveSession(
-  id: string,
-  userId: string,
-  identityMap: IdentityMapData
-): void {
-  const database = getDb();
-  const stmt = database.prepare(`
-    INSERT OR REPLACE INTO sessions (id, user_id, timestamp, identity_map)
-    VALUES (?, ?, ?, ?)
-  `);
-  stmt.run(id, userId, new Date().toISOString(), JSON.stringify(identityMap));
-}
-
-export function saveFullSession(
-  id: string,
-  userId: string,
-  result: AnalyzeResponse,
-  challenges?: ChallengeGenerationResult
-): void {
-  const database = getDb();
-  const stmt = database.prepare(`
-    INSERT OR REPLACE INTO sessions (id, user_id, timestamp, identity_map, full_result, challenges)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    id,
-    userId,
-    new Date().toISOString(),
-    JSON.stringify(result.identity_map),
-    JSON.stringify(result),
-    challenges ? JSON.stringify(challenges) : null
-  );
-}
-
 export interface SavedSession {
   id: string;
   timestamp: string;
   identity_map: IdentityMapData;
   full_result: AnalyzeResponse | null;
   challenges: ChallengeGenerationResult | null;
+  challenges_completed: string[];
 }
 
-export function getSavedSessions(userId: string): SavedSession[] {
-  const database = getDb();
-  const stmt = database.prepare(`
-    SELECT id, timestamp, identity_map, full_result, challenges
-    FROM sessions
-    WHERE user_id = ?
-    ORDER BY timestamp DESC
-  `);
-  const rows = stmt.all(userId) as Array<{
-    id: string;
-    timestamp: string;
-    identity_map: string;
-    full_result: string | null;
-    challenges: string | null;
-  }>;
+const sessions = new Map<string, SavedSession>();
 
-  return rows.map((row) => ({
-    id: row.id,
-    timestamp: row.timestamp,
-    identity_map: JSON.parse(row.identity_map) as IdentityMapData,
-    full_result: row.full_result
-      ? (JSON.parse(row.full_result) as AnalyzeResponse)
-      : null,
-    challenges: row.challenges
-      ? (JSON.parse(row.challenges) as ChallengeGenerationResult)
-      : null,
-  }));
+export function saveSession(
+  id: string,
+  _userId: string,
+  identityMap: IdentityMapData
+): void {
+  sessions.set(id, {
+    id,
+    timestamp: new Date().toISOString(),
+    identity_map: identityMap,
+    full_result: null,
+    challenges: null,
+    challenges_completed: [],
+  });
 }
 
-export function getSessions(userId: string): SessionRecord[] {
-  const database = getDb();
-  const stmt = database.prepare(`
-    SELECT id, timestamp, identity_map, challenges_completed
-    FROM sessions
-    WHERE user_id = ?
-    ORDER BY timestamp ASC
-  `);
-  const rows = stmt.all(userId) as Array<{
-    id: string;
-    timestamp: string;
-    identity_map: string;
-    challenges_completed: string;
-  }>;
+export function saveFullSession(
+  id: string,
+  _userId: string,
+  result: AnalyzeResponse,
+  challenges?: ChallengeGenerationResult
+): void {
+  sessions.set(id, {
+    id,
+    timestamp: new Date().toISOString(),
+    identity_map: result.identity_map,
+    full_result: result,
+    challenges: challenges ?? null,
+    challenges_completed: [],
+  });
+}
 
-  return rows.map((row) => ({
-    id: row.id,
-    timestamp: row.timestamp,
-    identity_map: JSON.parse(row.identity_map) as IdentityMapData,
-    challenges_completed: JSON.parse(row.challenges_completed) as string[],
-  }));
+export function getSavedSessions(_userId: string): SavedSession[] {
+  return Array.from(sessions.values()).sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+}
+
+export function getSessions(_userId: string): SessionRecord[] {
+  return Array.from(sessions.values())
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    .map((s) => ({
+      id: s.id,
+      timestamp: s.timestamp,
+      identity_map: s.identity_map,
+      challenges_completed: s.challenges_completed,
+    }));
 }
 
 export function getGrowthData(userId: string): GrowthData {
-  const sessions = getSessions(userId);
+  const allSessions = getSessions(userId);
 
-  if (sessions.length < 2) {
-    return { sessions, deltas: [] };
+  if (allSessions.length < 2) {
+    return { sessions: allSessions, deltas: [] };
   }
 
-  const latest = sessions[sessions.length - 1];
-  const previous = sessions[sessions.length - 2];
-
+  const latest = allSessions[allSessions.length - 1];
+  const previous = allSessions[allSessions.length - 2];
   const deltas = computeDeltas(previous.identity_map, latest.identity_map);
 
-  return { sessions, deltas };
+  return { sessions: allSessions, deltas };
 }
 
 function computeDeltas(
@@ -199,18 +133,10 @@ export function markChallengeCompleted(
   sessionId: string,
   challengeId: string
 ): void {
-  const database = getDb();
-  const row = database
-    .prepare("SELECT challenges_completed FROM sessions WHERE id = ?")
-    .get(sessionId) as { challenges_completed: string } | undefined;
+  const session = sessions.get(sessionId);
+  if (!session) return;
 
-  if (!row) return;
-
-  const completed = JSON.parse(row.challenges_completed) as string[];
-  if (!completed.includes(challengeId)) {
-    completed.push(challengeId);
-    database
-      .prepare("UPDATE sessions SET challenges_completed = ? WHERE id = ?")
-      .run(JSON.stringify(completed), sessionId);
+  if (!session.challenges_completed.includes(challengeId)) {
+    session.challenges_completed.push(challengeId);
   }
 }
